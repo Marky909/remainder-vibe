@@ -1,0 +1,2854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="KRONOS - A responsive dashboard for Reminders, Alarms, and Countdown Timers built with modern Vanilla JS and CSS variables.">
+  <title>KRONOS - Unified Time Engine</title>
+  
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM & CSS CUSTOM PROPERTIES
+       ========================================================================== */
+    :root {
+      /* Theme Palettes */
+      --bg-primary: #080b11;
+      --bg-gradient: radial-gradient(circle at 50% 50%, #151d30 0%, #07090e 100%);
+      --bg-glass: rgba(15, 22, 36, 0.45);
+      --bg-glass-card: rgba(20, 30, 50, 0.35);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-glow: rgba(255, 255, 255, 0.03);
+      --input-border: rgba(255, 255, 255, 0.12);
+      
+      /* Typography Colors */
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      /* Functional Accent Colors */
+      --accent-cyan: #00f5ff;
+      --accent-cyan-glow: rgba(0, 245, 255, 0.15);
+      --accent-magenta: #bd00ff;
+      --accent-magenta-glow: rgba(189, 0, 255, 0.15);
+      --accent-mint: #00ff87;
+      --accent-mint-glow: rgba(0, 255, 135, 0.15);
+      --accent-orange: #ff9f00;
+      --accent-orange-glow: rgba(255, 159, 0, 0.15);
+      --accent-red: #ff3b3b;
+      --accent-red-glow: rgba(255, 59, 59, 0.2);
+
+      /* Dynamic Accent (Changes per active tab) */
+      --accent-current: var(--accent-mint);
+      --accent-current-glow: var(--accent-mint-glow);
+      
+      /* Border Radii */
+      --radius-lg: 20px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      
+      /* Standardized Transitions */
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Target module-specific accent overrides via data-attributes */
+    [data-active-tab="reminder"] {
+      --accent-current: var(--accent-mint);
+      --accent-current-glow: var(--accent-mint-glow);
+    }
+    [data-active-tab="alarm"] {
+      --accent-current: var(--accent-magenta);
+      --accent-current-glow: var(--accent-magenta-glow);
+    }
+    [data-active-tab="timer"] {
+      --accent-current: var(--accent-orange);
+      --accent-current-glow: var(--accent-orange-glow);
+    }
+
+    /* ==========================================================================
+       GLOBAL RESETS
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--glass-border) transparent;
+    }
+
+    /* Custom Webkit scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--glass-border);
+      border-radius: 10px;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      background-image: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.5;
+    }
+
+    /* ==========================================================================
+       SPLASH SCREEN
+       ========================================================================== */
+    #splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #080b11;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity var(--transition-slow) ease;
+    }
+
+    #splash-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .splash-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    /* Sleek Analog Clock */
+    .analog-clock {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      border: 3px solid var(--accent-cyan);
+      background: rgba(15, 22, 36, 0.9);
+      box-shadow: 
+        0 0 25px var(--accent-cyan-glow),
+        inset 0 0 25px var(--accent-cyan-glow);
+      position: relative;
+    }
+
+    .clock-face {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      border-radius: 6px;
+    }
+
+    .hour-hand {
+      width: 6px;
+      height: 55px;
+      background: linear-gradient(to top, var(--accent-magenta), var(--accent-cyan));
+      margin-left: -3px;
+      animation: boot-hour 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .minute-hand {
+      width: 4px;
+      height: 80px;
+      background: linear-gradient(to top, var(--accent-cyan), #ffffff);
+      margin-left: -2px;
+      animation: boot-minute 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .second-hand {
+      width: 2px;
+      height: 90px;
+      background: var(--accent-orange);
+      margin-left: -1px;
+      animation: boot-second 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .center-pin {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #ffffff;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      z-index: 10;
+    }
+
+    /* Hour Markings */
+    .marking {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .mark-12 { top: 12px; left: 50%; width: 3px; height: 12px; transform: translateX(-50%); }
+    .mark-3  { right: 12px; top: 50%; width: 12px; height: 3px; transform: translateY(-50%); }
+    .mark-6  { bottom: 12px; left: 50%; width: 3px; height: 12px; transform: translateX(-50%); }
+    .mark-9  { left: 12px; top: 50%; width: 12px; height: 3px; transform: translateY(-50%); }
+
+    /* Fast-forward loading keyframes */
+    @keyframes boot-hour {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(210deg); } /* Ends at ~7:00 */
+    }
+    @keyframes boot-minute {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(1440deg); } /* Spins 4 times */
+    }
+    @keyframes boot-second {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(4320deg); } /* Spins 12 times */
+    }
+
+    .splash-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #ffffff;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+      animation: pulse-glow 1.5s infinite alternate;
+    }
+
+    @keyframes pulse-glow {
+      0% { opacity: 0.6; text-shadow: 0 0 8px rgba(0, 245, 255, 0.2); }
+      100% { opacity: 1; text-shadow: 0 0 18px rgba(0, 245, 255, 0.6); }
+    }
+
+    /* ==========================================================================
+       MAIN INTERFACE STRUCTURE
+       ========================================================================== */
+    .app-container {
+      width: 100%;
+      max-width: 960px;
+      padding: 2rem 1.25rem 4rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      flex-grow: 1;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity var(--transition-slow) ease, transform var(--transition-slow) ease;
+    }
+
+    .app-container.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Header styling */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      color: var(--accent-current);
+      filter: drop-shadow(0 0 8px var(--accent-current-glow));
+      transition: color var(--transition-normal), filter var(--transition-normal);
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent-current) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      transition: background var(--transition-normal);
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* ==========================================================================
+       TAB NAVIGATION SYSTEM
+       ========================================================================== */
+    .tab-navigation {
+      display: flex;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      padding: 6px;
+      border-radius: var(--radius-md);
+      position: relative;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .tab-trigger {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 2;
+      transition: color var(--transition-normal);
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-trigger svg {
+      opacity: 0.7;
+      transition: opacity var(--transition-normal), transform var(--transition-normal);
+    }
+
+    .tab-trigger:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-trigger:hover svg {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+
+    .tab-trigger.active {
+      color: var(--bg-primary);
+    }
+
+    .tab-trigger.active svg {
+      opacity: 1;
+    }
+
+    /* Sliding background pill */
+    .tab-indicator {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      height: calc(100% - 12px);
+      width: calc((100% - 12px) / 3);
+      background: var(--accent-current);
+      border-radius: var(--radius-sm);
+      z-index: 1;
+      transition: transform var(--transition-normal), background var(--transition-normal), box-shadow var(--transition-normal);
+      box-shadow: 0 0 15px var(--accent-current-glow);
+    }
+
+    /* Active Tab Sliding Offsets */
+    [data-active-tab="reminder"] .tab-indicator { transform: translateX(0); }
+    [data-active-tab="alarm"] .tab-indicator { transform: translateX(100%); }
+    [data-active-tab="timer"] .tab-indicator { transform: translateX(200%); }
+
+    /* ==========================================================================
+       DASHBOARD CARD CONTAINER
+       ========================================================================== */
+    .dashboard-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 2.2rem 2rem;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.4),
+        inset 0 0 2px var(--glass-border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Glowing back-lights on panels */
+    .dashboard-card::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      right: -20%;
+      width: 250px;
+      height: 250px;
+      background: var(--accent-current-glow);
+      filter: blur(80px);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      transition: background var(--transition-normal);
+    }
+
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 2rem;
+      z-index: 1;
+      animation: panel-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-panel.active {
+      display: flex;
+    }
+
+    @keyframes panel-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ==========================================================================
+       FORM ELEMENTS (REUSABLE)
+       ========================================================================== */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      width: 100%;
+    }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    input[type="time"],
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: inherit;
+      font-size: 1rem;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    input:focus {
+      border-color: var(--accent-current);
+      box-shadow: 0 0 10px var(--accent-current-glow);
+    }
+
+    /* Placeholder style */
+    ::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Calendar and Time picker icon custom webkit styles */
+    ::-webkit-calendar-picker-indicator {
+      filter: invert(0.9) sepia(1) saturate(5) hue-rotate(170deg);
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity var(--transition-fast);
+    }
+    ::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+
+    /* Standard Button Grid & Styles */
+    .btn {
+      background: var(--accent-current);
+      border: none;
+      color: var(--bg-primary);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 14px 24px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+      box-shadow: 0 4px 15px var(--accent-current-glow);
+      text-shadow: none;
+      outline: none;
+    }
+
+    .btn:hover {
+      background: #ffffff;
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--input-border);
+      color: var(--text-primary);
+      box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--text-secondary);
+      box-shadow: none;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: rgba(255, 59, 59, 0.15);
+      border: 1px solid var(--accent-red);
+      color: var(--accent-red);
+      box-shadow: none;
+    }
+
+    .btn-danger:hover {
+      background: var(--accent-red);
+      color: #ffffff;
+      box-shadow: 0 4px 15px var(--accent-red-glow);
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       MODULE 1: REMINDERS UI
+       ========================================================================== */
+    .reminders-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2.2rem;
+    }
+
+    @media (min-width: 768px) {
+      .reminders-layout {
+        grid-template-columns: 1fr 1.2fr;
+      }
+    }
+
+    .reminder-box {
+      background: var(--bg-glass-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .reminder-banner {
+      background: rgba(0, 245, 255, 0.07);
+      border: 1px dashed rgba(0, 245, 255, 0.3);
+      padding: 0.8rem 1rem;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .reminder-banner p {
+      color: var(--text-secondary);
+    }
+
+    .reminder-banner button {
+      background: var(--accent-cyan);
+      color: var(--bg-primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .reminders-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .reminders-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      border: 1px dashed var(--glass-border);
+      border-radius: var(--radius-md);
+      gap: 0.75rem;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.3;
+      stroke-width: 1.5;
+    }
+
+    .reminder-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .reminder-card:hover {
+      transform: translateX(2px);
+      border-color: rgba(0, 255, 135, 0.3);
+      background: rgba(0, 255, 135, 0.02);
+    }
+
+    .reminder-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .reminder-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .reminder-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .reminder-time {
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .countdown-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-mint);
+      background: rgba(0, 255, 135, 0.1);
+      padding: 3px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 255, 135, 0.25);
+    }
+
+    .countdown-badge.overdue {
+      color: var(--accent-red);
+      background: rgba(255, 59, 59, 0.1);
+      border: 1px solid rgba(255, 59, 59, 0.25);
+    }
+
+    .action-circle-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+
+    .action-circle-btn:hover {
+      color: var(--accent-red);
+      background: rgba(255, 59, 59, 0.15);
+      border-color: rgba(255, 59, 59, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* ==========================================================================
+       MODULE 2: ALARM CLOCK UI
+       ========================================================================== */
+    .alarm-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2.2rem;
+    }
+
+    @media (min-width: 768px) {
+      .alarm-layout {
+        grid-template-columns: 1.1fr 1fr;
+      }
+    }
+
+    /* Clock Display Box */
+    .digital-clock-panel {
+      background: var(--bg-glass-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 2.2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      box-shadow: inset 0 0 15px rgba(189, 0, 255, 0.03);
+      position: relative;
+    }
+
+    .digital-clock-panel::after {
+      content: '';
+      position: absolute;
+      width: calc(100% - 40px);
+      height: calc(100% - 40px);
+      border: 1px solid rgba(189, 0, 255, 0.1);
+      border-radius: var(--radius-sm);
+      pointer-events: none;
+    }
+
+    .digital-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.6rem, 8vw, 4.4rem);
+      font-weight: 700;
+      color: var(--text-primary);
+      text-shadow: 0 0 20px rgba(189, 0, 255, 0.3);
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .clock-colon {
+      animation: blink 1s step-end infinite;
+      color: var(--accent-magenta);
+    }
+
+    @keyframes blink {
+      from, to { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .digital-clock-date {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Set Alarm Side */
+    .alarm-box {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .alarms-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .alarm-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.1rem 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all var(--transition-fast);
+    }
+
+    .alarm-card:hover {
+      border-color: rgba(189, 0, 255, 0.3);
+      background: rgba(189, 0, 255, 0.02);
+    }
+
+    .alarm-card.disabled {
+      opacity: 0.6;
+    }
+
+    .alarm-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .alarm-time-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .alarm-label-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .alarm-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    /* Custom Toggle Switch styling */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--input-border);
+      border-radius: 34px;
+      transition: .3s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-secondary);
+      border-radius: 50%;
+      transition: .3s;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent-magenta);
+      border-color: transparent;
+      box-shadow: 0 0 10px rgba(189, 0, 255, 0.4);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+      background-color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       MODULE 3: COUNTDOWN TIMER UI
+       ========================================================================== */
+    .timer-layout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2.2rem;
+    }
+
+    @media (min-width: 768px) {
+      .timer-layout {
+        flex-direction: row;
+        gap: 4rem;
+      }
+    }
+
+    .timer-visual-container {
+      position: relative;
+      width: 230px;
+      height: 230px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* SVG Ring Display */
+    .timer-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .timer-ring-bg {
+      stroke: rgba(255, 255, 255, 0.04);
+    }
+
+    .timer-ring-progress {
+      stroke: var(--accent-orange);
+      stroke-dasharray: 597; /* 2 * PI * r (r=95) = 596.9 */
+      stroke-dashoffset: 0;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.1s linear, stroke var(--transition-normal);
+      filter: drop-shadow(0 0 6px var(--accent-orange-glow));
+    }
+
+    /* Glowing red state when finished */
+    .timer-ring-progress.finished {
+      stroke: var(--accent-red);
+      filter: drop-shadow(0 0 12px var(--accent-red-glow));
+      animation: alert-pulse 1s infinite;
+    }
+
+    @keyframes alert-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .timer-digital-readout {
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .timer-time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 3.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 1px;
+    }
+
+    .timer-status-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-top: -4px;
+    }
+
+    /* Timer Controls Side */
+    .timer-settings-box {
+      flex: 1;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Number inputs styled beautifully */
+    .timer-spinners {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .spinner-control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .spinner-input-wrapper {
+      display: flex;
+      border: 1px solid var(--input-border);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .spinner-input-wrapper:focus-within {
+      border-color: var(--accent-orange);
+      box-shadow: 0 0 10px var(--accent-orange-glow);
+    }
+
+    .spinner-input-wrapper input {
+      border: none;
+      background: transparent;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      padding: 12px 0;
+      width: 100%;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .spinner-input-wrapper input::-webkit-outer-spin-button,
+    .spinner-input-wrapper input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .spinner-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      width: 40px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .spinner-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+    }
+
+    /* Presets Grid */
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 10px 0;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent-orange);
+      color: var(--accent-orange);
+      background: var(--accent-orange-glow);
+    }
+
+    .timer-actions {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1rem;
+    }
+
+    /* ==========================================================================
+       MODAL SYSTEM (POPUP ALERTS & TRIGGERS)
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 340px;
+      height: auto;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-normal) ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: rgba(15, 22, 36, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      width: 100%;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      transform: translateX(100px);
+      transition: transform var(--transition-normal) cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-overlay.active .modal-card {
+      transform: translateX(0);
+    }
+
+    .modal-icon-container {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      animation: modal-glow-pulse 2s infinite alternate;
+    }
+
+    /* Neon pulsating shadow configurations per overlay type */
+    .modal-icon-container.alarm-alert {
+      background: rgba(189, 0, 255, 0.15);
+      border: 2px solid var(--accent-magenta);
+      color: var(--accent-magenta);
+      box-shadow: 0 0 15px rgba(189, 0, 255, 0.3);
+    }
+
+    .modal-icon-container.timer-alert {
+      background: rgba(255, 159, 0, 0.15);
+      border: 2px solid var(--accent-orange);
+      color: var(--accent-orange);
+      box-shadow: 0 0 15px rgba(255, 159, 0, 0.3);
+    }
+
+    .modal-icon-container.reminder-alert {
+      background: rgba(0, 255, 135, 0.15);
+      border: 2px solid var(--accent-mint);
+      color: var(--accent-mint);
+      box-shadow: 0 0 15px rgba(0, 255, 135, 0.3);
+    }
+
+    @keyframes modal-glow-pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 8px currentColor; }
+      100% { transform: scale(1.05); box-shadow: 0 0 18px currentColor; }
+    }
+
+    .modal-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .modal-card h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      margin: 0;
+    }
+
+    .modal-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .modal-card .time-stamp {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .modal-btn-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .modal-btn-row .btn {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+    }
+
+    /* ==========================================================================
+       TOAST ALERTS (IN-APP POPUPS)
+       ========================================================================== */
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10001;
+      width: 90%;
+      max-width: 380px;
+    }
+
+    .toast {
+      background: rgba(15, 22, 36, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-left: 4px solid var(--accent-current);
+      border-top: 1px solid var(--glass-border);
+      border-right: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-primary);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+      transform: translateX(50px);
+      opacity: 0;
+      animation: toast-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes toast-slide-in {
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .toast-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .toast-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .toast-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: color var(--transition-fast);
+      outline: none;
+    }
+
+    .toast-close:hover {
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body data-active-tab="reminder">
+
+  <!-- 1. SPLASH SCREEN CLOCK ANIMATION -->
+  <div id="splash-screen">
+    <div class="splash-container">
+      <div class="analog-clock">
+        <div class="clock-face">
+          <!-- Main Hands -->
+          <div class="hand hour-hand"></div>
+          <div class="hand minute-hand"></div>
+          <div class="hand second-hand"></div>
+          <div class="center-pin"></div>
+          <!-- Clock Notches -->
+          <div class="marking mark-12"></div>
+          <div class="marking mark-3"></div>
+          <div class="marking mark-6"></div>
+          <div class="marking mark-9"></div>
+        </div>
+      </div>
+      <div class="splash-title">KRONOS</div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="app-container" id="app-container">
+    
+    <!-- HEADER -->
+    <header>
+      <div class="logo-container">
+        <svg viewBox="0 0 24 24" class="logo-icon" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke-dasharray="2 2" opacity="0.4"></path>
+        </svg>
+        <h1>KRONOS</h1>
+      </div>
+      <div class="subtitle">Unified Time Engine</div>
+    </header>
+
+    <!-- 2. TABBED NAVIGATION -->
+    <nav class="tab-navigation" aria-label="Main navigation">
+      <div class="tab-indicator" id="tab-indicator"></div>
+      
+      <button class="tab-trigger active" data-target="reminder-module">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+          <path d="M8 14h.01"></path>
+          <path d="M12 14h.01"></path>
+          <path d="M16 14h.01"></path>
+          <path d="M8 18h.01"></path>
+          <path d="M12 18h.01"></path>
+          <path d="M16 18h.01"></path>
+        </svg>
+        <span>Reminders</span>
+      </button>
+
+      <button class="tab-trigger" data-target="alarm-module">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span>Alarms</span>
+      </button>
+
+      <button class="tab-trigger" data-target="timer-module">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 3h14"></path>
+          <path d="M5 21h14"></path>
+          <path d="M5 3v5c0 2 1.5 3.5 3.5 3.5s3.5-1.5 3.5-3.5V3"></path>
+          <path d="M19 3v5c0 2-1.5 3.5-3.5 3.5S12 10 12 8V3"></path>
+          <path d="M12 12c-1.5 0-3.5 1.5-3.5 3.5V21h7v-5.5c0-2-2-3.5-3.5-3.5z"></path>
+        </svg>
+        <span>Timer</span>
+      </button>
+    </nav>
+
+    <!-- DASHBOARD WORKSPACE CARD -->
+    <main class="dashboard-card">
+
+      <!-- MODULE 1: REMINDER PANEL -->
+      <section id="reminder-module" class="tab-panel active" aria-labelledby="reminder-tab">
+        <div class="reminder-banner" id="notif-banner">
+          <p>Enable native desktop alerts for real-time reminders in the background.</p>
+          <button id="enable-notifs-btn">Enable Alerts</button>
+        </div>
+        
+        <div class="reminders-layout">
+          <!-- Form input side -->
+          <div class="reminder-box">
+            <h3 id="reminder-form-title" style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; border-left: 3px solid var(--accent-mint); padding-left: 10px;">Schedule Reminder</h3>
+            
+            <div class="form-group">
+              <label for="reminder-text">What should we remind you of?</label>
+              <input type="text" id="reminder-text" placeholder="e.g., Project Sync Meeting..." required>
+            </div>
+            
+            <div class="form-group">
+              <label for="reminder-datetime">Target Date & Time</label>
+              <input type="datetime-local" id="reminder-datetime" required>
+            </div>
+            
+            <button class="btn" id="add-reminder-btn" style="margin-top: 0.5rem;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span id="add-reminder-btn-text">Add Reminder</span>
+            </button>
+            <button class="btn btn-secondary" id="cancel-reminder-edit-btn" style="display: none; margin-top: 0.5rem; width: 100%;">Cancel Edit</button>
+          </div>
+
+          <!-- Active display list -->
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="reminders-list-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px;">Active Reminders</h3>
+                <span id="reminder-count" style="font-size: 0.8rem; font-weight: 700; color: var(--accent-mint); background: rgba(0, 255, 135, 0.1); padding: 2px 10px; border-radius: 12px; border: 1px solid rgba(0, 255, 135, 0.25);">0 Set</span>
+              </div>
+              <button class="btn" id="clear-all-reminders-btn" onclick="window.clearAllReminders()" style="display: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 700; height: auto; width: auto; background: rgba(255, 59, 59, 0.15); border: 1px solid var(--accent-red); color: var(--accent-red); margin: 0; box-shadow: none;">Clear All</button>
+            </div>
+            
+            <div class="reminders-list-container" id="reminders-list">
+              <!-- Dynamically populated or empty state -->
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <p style="font-weight: 600;">No reminders planned</p>
+                <p style="font-size: 0.8rem; max-width: 250px;">Fill out the scheduler on the left to set up automatic triggers.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 2: ALARM PANEL -->
+      <section id="alarm-module" class="tab-panel" aria-labelledby="alarm-tab">
+        <div class="alarm-layout">
+          <!-- Digital Clock Display -->
+          <div class="digital-clock-panel">
+            <div class="digital-clock" id="live-clock">
+              <span id="clock-hh">00</span><span class="clock-colon">:</span><span id="clock-mm">00</span><span class="clock-colon">:</span><span id="clock-ss">00</span>
+            </div>
+            <div class="digital-clock-date" id="live-date">FRIDAY, JUNE 19</div>
+          </div>
+
+          <!-- Set and List Alarms -->
+          <div class="alarm-box">
+            <h3 id="alarm-form-title" style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; border-left: 3px solid var(--accent-magenta); padding-left: 10px;">Queue Alarm</h3>
+            
+            <div class="form-row">
+              <div class="form-group" style="flex: 1 1 120px;">
+                <label for="alarm-time">Set Time</label>
+                <input type="time" id="alarm-time" required>
+              </div>
+              <div class="form-group" style="flex: 2 1 200px;">
+                <label for="alarm-label">Label (Optional)</label>
+                <input type="text" id="alarm-label" placeholder="e.g., Wake up call...">
+              </div>
+            </div>
+            
+            <button class="btn" id="add-alarm-btn">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span id="add-alarm-btn-text">Set Alarm</span>
+            </button>
+            <button class="btn btn-secondary" id="cancel-alarm-edit-btn" style="display: none; margin-top: 0.5rem; width: 100%;">Cancel Edit</button>
+            <div class="reminders-list-header" style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px;">Active Alarms</h3>
+                <span id="alarm-count" style="font-size: 0.8rem; font-weight: 700; color: var(--accent-magenta); background: rgba(189, 0, 255, 0.1); padding: 2px 10px; border-radius: 12px; border: 1px solid rgba(189, 0, 255, 0.25);">0 Set</span>
+              </div>
+              <button class="btn" id="clear-all-alarms-btn" onclick="window.clearAllAlarms()" style="display: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 700; height: auto; width: auto; background: rgba(255, 59, 59, 0.15); border: 1px solid var(--accent-red); color: var(--accent-red); margin: 0; box-shadow: none;">Clear All</button>
+            </div>
+
+            <div class="alarms-list-container" id="alarms-list">
+              <!-- Dynamically populated or empty state -->
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <p style="font-weight: 600;">No active alarms</p>
+                <p style="font-size: 0.8rem; max-width: 250px;">Select a time above to schedule an audio reminder call.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 3: TIMER PANEL -->
+      <section id="timer-module" class="tab-panel" aria-labelledby="timer-tab">
+        <div class="timer-layout">
+          <!-- Circular Ring display -->
+          <div class="timer-visual-container">
+            <svg class="timer-ring" viewBox="0 0 220 220">
+              <circle class="timer-ring-bg" cx="110" cy="110" r="95" stroke-width="6" fill="transparent" />
+              <circle class="timer-ring-progress" id="timer-ring-progress" cx="110" cy="110" r="95" stroke-width="6" fill="transparent" stroke-linecap="round" />
+            </svg>
+            <div class="timer-digital-readout">
+              <div class="timer-time-display" id="timer-display">00:00</div>
+              <div class="timer-status-tag" id="timer-status">Idle</div>
+            </div>
+          </div>
+
+          <!-- Configuration & Presets -->
+          <div class="timer-settings-box">
+            <h3 style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; border-left: 3px solid var(--accent-orange); padding-left: 10px;">Configure Duration</h3>
+            
+            <div class="timer-spinners" id="timer-spinners-group">
+              <div class="spinner-control">
+                <label for="timer-min">Minutes</label>
+                <div class="spinner-input-wrapper">
+                  <button class="spinner-btn" data-action="dec" data-target="timer-min" aria-label="Decrease minutes">−</button>
+                  <input type="number" id="timer-min" min="0" max="99" value="00" placeholder="00">
+                  <button class="spinner-btn" data-action="inc" data-target="timer-min" aria-label="Increase minutes">+</button>
+                </div>
+              </div>
+              
+              <div class="spinner-control">
+                <label for="timer-sec">Seconds</label>
+                <div class="spinner-input-wrapper">
+                  <button class="spinner-btn" data-action="dec" data-target="timer-sec" aria-label="Decrease seconds">−</button>
+                  <input type="number" id="timer-sec" min="0" max="59" value="00" placeholder="00">
+                  <button class="spinner-btn" data-action="inc" data-target="timer-sec" aria-label="Increase seconds">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Presets grid -->
+            <div class="presets-grid" id="timer-presets">
+              <button class="preset-btn" data-mins="1">1 Min</button>
+              <button class="preset-btn" data-mins="5">5 Min</button>
+              <button class="preset-btn" data-mins="10">10 Min</button>
+              <button class="preset-btn" data-mins="15">15 Min</button>
+            </div>
+
+            <div class="timer-actions">
+              <button class="btn" id="timer-toggle-btn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Start</span>
+              </button>
+              <button class="btn btn-secondary" id="timer-reset-btn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                </svg>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL OVERLAYS (ALARM & TIMER ALERTS)
+       ========================================================================== */ -->
+  
+  <!-- ALARM TRIGGER MODAL -->
+  <div class="modal-overlay" id="alarm-modal">
+    <div class="modal-card">
+      <div class="modal-header-row">
+        <div class="modal-icon-container alarm-alert">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </div>
+        <div style="flex: 1;">
+          <h2 id="modal-alarm-label">Wake Up!</h2>
+          <p>Active Alarm Triggered</p>
+        </div>
+      </div>
+      <div class="time-stamp" id="modal-alarm-time">07:30</div>
+      <div class="modal-btn-row">
+        <button class="btn" id="alarm-dismiss-btn">Dismiss</button>
+        <button class="btn btn-secondary" id="alarm-snooze-btn">Snooze (5m)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMER TRIGGER MODAL -->
+  <div class="modal-overlay" id="timer-modal">
+    <div class="modal-card">
+      <div class="modal-header-row">
+        <div class="modal-icon-container timer-alert">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div style="flex: 1;">
+          <h2>Timer Complete</h2>
+          <p>Your countdown duration has expired.</p>
+        </div>
+      </div>
+      <div class="modal-btn-row">
+        <button class="btn" id="timer-dismiss-btn" style="background: var(--accent-orange); box-shadow: 0 4px 15px var(--accent-orange-glow); width: 100%;">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IN-APP TOAST NOTIFICATIONS POPUP QUEUE -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ==========================================================================
+       VANILLA JAVASCRIPT LOGIC
+       ========================================================================== -->
+  <script>
+    'use strict';
+
+    /* ==========================================================================
+       1. WEB AUDIO SYNTHESIZER MODULE
+       ========================================================================== */
+    const AudioSynth = {
+      ctx: null,
+
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            this.ctx = new AudioContextClass();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      // Short beautiful chime sequence for Reminders (Ascending arpeggio)
+      playReminderChime() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [329.63, 392.00, 523.25, 659.25]; // E4, G4, C5, E5
+        
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + (i * 0.08));
+          
+          gain.gain.setValueAtTime(0, now + (i * 0.08));
+          gain.gain.linearRampToValueAtTime(0.12, now + (i * 0.08) + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + (i * 0.08) + 0.45);
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + (i * 0.08));
+          osc.stop(now + (i * 0.08) + 0.5);
+        });
+      },
+
+      // Repeating siren pattern for alarms. Returns control handlers.
+      startAlarmSiren() {
+        this.init();
+        if (!this.ctx) return null;
+        
+        const oscillators = [];
+        const gainNodes = [];
+        const now = this.ctx.currentTime;
+
+        // Two alternating oscillators (sine wave) with LFO pitch change
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(700, now);
+
+        // LFO (Low Frequency Oscillator) to warp pitch up/down continuously
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(2.5, now); // 2.5Hz wobble rate
+        
+        const lfoGain = this.ctx.createGain();
+        lfoGain.gain.setValueAtTime(150, now); // scale amplitude (700Hz +- 150Hz)
+
+        osc2.connect(lfoGain);
+        lfoGain.connect(osc1.frequency);
+
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.18, now + 0.1);
+
+        osc1.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+
+        oscillators.push(osc1, osc2);
+        gainNodes.push(gainNode);
+
+        return {
+          stop() {
+            try {
+              oscillators.forEach(o => o.stop());
+            } catch (err) {}
+          }
+        };
+      },
+
+      // Triple repeating electronic digital beep. Returns control handlers.
+      startTimerBeeps() {
+        this.init();
+        if (!this.ctx) return null;
+
+        let cycle = 0;
+        const triggerBeepCycle = () => {
+          const now = this.ctx.currentTime;
+          [0, 0.15, 0.3].forEach(delay => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(980, now + delay);
+            
+            gain.gain.setValueAtTime(0, now + delay);
+            gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.12);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.15);
+          });
+        };
+
+        triggerBeepCycle(); // initial beep
+        const intervalId = setInterval(() => {
+          triggerBeepCycle();
+          cycle++;
+          if (cycle >= 15) { // auto stop timer sound after 15 loops
+            clearInterval(intervalId);
+          }
+        }, 1200);
+
+        return {
+          stop() {
+            clearInterval(intervalId);
+          }
+        };
+      }
+    };
+
+    // Unlock Web Audio Context on first interaction
+    const initAudioUnlock = () => {
+      AudioSynth.init();
+      ['click', 'keydown', 'touchstart'].forEach(evt => {
+        document.removeEventListener(evt, initAudioUnlock);
+      });
+    };
+    ['click', 'keydown', 'touchstart'].forEach(evt => {
+      document.addEventListener(evt, initAudioUnlock);
+    });
+
+    /* ==========================================================================
+       2. APPLICATION STATE MANAGEMENT
+       ========================================================================== */
+    const STATE = {
+      activeTab: 'reminder',
+      reminders: [],
+      alarms: [],
+      timer: {
+        totalSeconds: 0,
+        remainingSeconds: 0,
+        status: 'idle', // idle, running, paused
+        intervalId: null
+      },
+      alarmSirenInstance: null,
+      timerBeepInstance: null,
+      editingReminderId: null,
+      editingAlarmId: null
+    };
+
+    // Local Storage persistence utilities
+    const DB = {
+      load() {
+        try {
+          const loadedReminders = localStorage.getItem('kronos_reminders');
+          if (loadedReminders) STATE.reminders = JSON.parse(loadedReminders);
+          
+          const loadedAlarms = localStorage.getItem('kronos_alarms');
+          if (loadedAlarms) STATE.alarms = JSON.parse(loadedAlarms);
+        } catch (e) {
+          console.warn('Failed to parse database state from localStorage', e);
+        }
+      },
+      saveReminders() {
+        try {
+          localStorage.setItem('kronos_reminders', JSON.stringify(STATE.reminders));
+        } catch(e) {}
+      },
+      saveAlarms() {
+        try {
+          localStorage.setItem('kronos_alarms', JSON.stringify(STATE.alarms));
+        } catch(e) {}
+      }
+    };
+
+    /* ==========================================================================
+       3. DOM SELECTORS
+       ========================================================================== */
+    const DOM = {
+      splashScreen: document.getElementById('splash-screen'),
+      appContainer: document.getElementById('app-container'),
+      body: document.body,
+      
+      // Tabs
+      tabTriggers: document.querySelectorAll('.tab-trigger'),
+      tabPanels: document.querySelectorAll('.tab-panel'),
+      
+      // Toast / System banners
+      toastContainer: document.getElementById('toast-container'),
+      notifBanner: document.getElementById('notif-banner'),
+      enableNotifsBtn: document.getElementById('enable-notifs-btn'),
+      
+      // Reminders DOM
+      reminderText: document.getElementById('reminder-text'),
+      reminderDatetime: document.getElementById('reminder-datetime'),
+      addReminderBtn: document.getElementById('add-reminder-btn'),
+      reminderFormTitle: document.getElementById('reminder-form-title'),
+      addReminderBtnText: document.getElementById('add-reminder-btn-text'),
+      cancelReminderEditBtn: document.getElementById('cancel-reminder-edit-btn'),
+      remindersList: document.getElementById('reminders-list'),
+      reminderCount: document.getElementById('reminder-count'),
+      clearAllRemindersBtn: document.getElementById('clear-all-reminders-btn'),
+      
+      // Alarms DOM
+      liveClockHH: document.getElementById('clock-hh'),
+      liveClockMM: document.getElementById('clock-mm'),
+      liveClockSS: document.getElementById('clock-ss'),
+      liveDate: document.getElementById('live-date'),
+      alarmTime: document.getElementById('alarm-time'),
+      alarmLabel: document.getElementById('alarm-label'),
+      addAlarmBtn: document.getElementById('add-alarm-btn'),
+      alarmFormTitle: document.getElementById('alarm-form-title'),
+      addAlarmBtnText: document.getElementById('add-alarm-btn-text'),
+      cancelAlarmEditBtn: document.getElementById('cancel-alarm-edit-btn'),
+      alarmsList: document.getElementById('alarms-list'),
+      alarmCount: document.getElementById('alarm-count'),
+      clearAllAlarmsBtn: document.getElementById('clear-all-alarms-btn'),
+      
+      // Alarms Modal
+      alarmModal: document.getElementById('alarm-modal'),
+      modalAlarmLabel: document.getElementById('modal-alarm-label'),
+      modalAlarmTime: document.getElementById('modal-alarm-time'),
+      alarmDismissBtn: document.getElementById('alarm-dismiss-btn'),
+      alarmSnoozeBtn: document.getElementById('alarm-snooze-btn'),
+      
+      // Timer DOM
+      timerRingProgress: document.getElementById('timer-ring-progress'),
+      timerDisplay: document.getElementById('timer-display'),
+      timerStatus: document.getElementById('timer-status'),
+      timerMinInput: document.getElementById('timer-min'),
+      timerSecInput: document.getElementById('timer-sec'),
+      timerPresets: document.getElementById('timer-presets'),
+      timerToggleBtn: document.getElementById('timer-toggle-btn'),
+      timerResetBtn: document.getElementById('timer-reset-btn'),
+      timerSpinnersGroup: document.getElementById('timer-spinners-group'),
+      
+      // Timer Modal
+      timerModal: document.getElementById('timer-modal'),
+      timerDismissBtn: document.getElementById('timer-dismiss-btn')
+    };
+
+    /* ==========================================================================
+       4. UTILITY HELPER FUNCTIONS
+       ========================================================================== */
+    const UI = {
+      // Create and mount a nice toast alert card
+      showToast(title, desc) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `
+          <div class="toast-body">
+            <div class="toast-title">${title}</div>
+            <div class="toast-desc">${desc}</div>
+          </div>
+          <button class="toast-close" aria-label="Close Toast">×</button>
+        `;
+        
+        DOM.toastContainer.appendChild(toast);
+        
+        const closeBtn = toast.querySelector('.toast-close');
+        const dismissToast = () => {
+          toast.style.animation = 'toast-slide-in 0.3s ease reverse forwards';
+          toast.addEventListener('animationend', () => toast.remove());
+        };
+        
+        closeBtn.addEventListener('click', dismissToast);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+          if (toast.parentNode) dismissToast();
+        }, 4000);
+      },
+
+      formatDate(dateObj) {
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        return dateObj.toLocaleDateString('en-US', options).toUpperCase();
+      },
+
+      formatTime(h, m, s) {
+        const pad = (num) => String(num).padStart(2, '0');
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+      },
+      
+      formatRemainingTime(ms) {
+        if (ms <= 0) return 'Overdue!';
+        const totalSecs = Math.floor(ms / 1000);
+        const days = Math.floor(totalSecs / 86400);
+        const hours = Math.floor((totalSecs % 86400) / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+        
+        if (days > 0) return `in ${days}d ${hours}h`;
+        if (hours > 0) return `in ${hours}h ${mins}m`;
+        if (mins > 0) return `in ${mins}m ${secs}s`;
+        return `in ${secs}s`;
+      }
+    };
+
+    /* ==========================================================================
+       5. SYSTEM TICK / BACKGROUND WORKER MODULE
+       ========================================================================== */
+    const Engine = {
+      start() {
+        // Run update loops immediately on load
+        this.tick();
+        
+        // Standard precise 1s interval sync checker
+        setInterval(() => this.tick(), 1000);
+      },
+
+      tick() {
+        const now = new Date();
+        const curTimestamp = now.getTime();
+        
+        // 1. Update live clock in Alarm Module
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+        
+        if (DOM.liveClockHH) DOM.liveClockHH.textContent = String(hours).padStart(2, '0');
+        if (DOM.liveClockMM) DOM.liveClockMM.textContent = String(minutes).padStart(2, '0');
+        if (DOM.liveClockSS) DOM.liveClockSS.textContent = String(seconds).padStart(2, '0');
+        if (DOM.liveDate) DOM.liveDate.textContent = UI.formatDate(now);
+        
+        // 2. Evaluate active reminders
+        RemindersApp.evaluate(curTimestamp);
+
+        // 3. Evaluate active alarms
+        AlarmsApp.evaluate(hours, minutes, seconds);
+      }
+    };
+
+    /* ==========================================================================
+       6. MODULE 1: REMINDER LOGIC
+       ========================================================================== */
+    const RemindersApp = {
+      init() {
+        // Set date-time picker minimum restriction to prevent scheduling past events
+        this.updateDatetimeMin();
+        
+        // Notifications API capability handling
+        this.checkNotificationPermissions();
+        
+        // Bind UI triggers
+        DOM.addReminderBtn.addEventListener('click', () => this.add());
+        DOM.enableNotifsBtn.addEventListener('click', () => this.requestPermissions());
+        DOM.cancelReminderEditBtn.addEventListener('click', () => this.cancelEdit());
+        
+        // Initialize list elements
+        this.render();
+      },
+
+      updateDatetimeMin() {
+        const now = new Date();
+        // Adjust timezone offset output for ISO format compatibility
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        DOM.reminderDatetime.min = `${year}-${month}-${day}T${hours}:${minutes}`;
+      },
+
+      checkNotificationPermissions() {
+        if (!("Notification" in window)) {
+          DOM.notifBanner.style.display = 'none';
+          return;
+        }
+        
+        if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+          DOM.notifBanner.style.display = 'none';
+        } else {
+          DOM.notifBanner.style.display = 'flex';
+        }
+      },
+
+      requestPermissions() {
+        if (!("Notification" in window)) return;
+        
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            UI.showToast('Permissions Enabled', 'Native desktop alerts will now pop up!');
+          }
+          this.checkNotificationPermissions();
+        });
+      },
+
+      add() {
+        const desc = DOM.reminderText.value.trim();
+        const targetStr = DOM.reminderDatetime.value;
+        
+        if (!desc || !targetStr) {
+          UI.showToast('Validation Error', 'Please complete all reminder input fields.');
+          return;
+        }
+
+        const targetTime = new Date(targetStr).getTime();
+        const now = Date.now();
+
+        if (targetTime <= now) {
+          UI.showToast('Invalid Time', 'Reminders must be set in the future.');
+          return;
+        }
+
+        if (STATE.editingReminderId) {
+          // Editing mode
+          const rem = STATE.reminders.find(r => r.id === STATE.editingReminderId);
+          if (rem) {
+            rem.description = desc;
+            rem.targetTime = targetTime;
+            UI.showToast('Reminder Updated', 'Your changes have been saved.');
+          }
+          this.cancelEdit();
+        } else {
+          // Adding mode
+          const newReminder = {
+            id: 'rem_' + Math.random().toString(36).substr(2, 9),
+            description: desc,
+            targetTime: targetTime
+          };
+
+          STATE.reminders.push(newReminder);
+          UI.showToast('Reminder Scheduled', `"${desc}" is queued successfully.`);
+        }
+        
+        // Sort reminders by closest target time
+        STATE.reminders.sort((a, b) => a.targetTime - b.targetTime);
+        
+        DB.saveReminders();
+        this.render();
+      },
+
+      editReminder(id) {
+        const rem = STATE.reminders.find(r => r.id === id);
+        if (!rem) return;
+
+        STATE.editingReminderId = id;
+        DOM.reminderText.value = rem.description;
+        
+        // Convert timestamp to ISO datetime-local format
+        const date = new Date(rem.targetTime);
+        const tzoffset = date.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, 16);
+        DOM.reminderDatetime.value = localISOTime;
+
+        DOM.reminderFormTitle.textContent = "Edit Reminder";
+        DOM.addReminderBtnText.textContent = "Update Reminder";
+        DOM.cancelReminderEditBtn.style.display = "block";
+        
+        DOM.reminderText.focus();
+      },
+
+      cancelEdit() {
+        STATE.editingReminderId = null;
+        DOM.reminderText.value = "";
+        DOM.reminderDatetime.value = "";
+        this.updateDatetimeMin();
+
+        DOM.reminderFormTitle.textContent = "Schedule Reminder";
+        DOM.addReminderBtnText.textContent = "Add Reminder";
+        DOM.cancelReminderEditBtn.style.display = "none";
+      },
+
+      deleteReminder(id) {
+        if (STATE.editingReminderId === id) {
+          this.cancelEdit();
+        }
+        const index = STATE.reminders.findIndex(rem => rem.id === id);
+        if (index !== -1) {
+          STATE.reminders.splice(index, 1);
+        }
+        DB.saveReminders();
+        this.render();
+        UI.showToast('Reminder Deleted', 'The reminder has been successfully removed.');
+      },
+
+      clearAll() {
+        this.cancelEdit();
+        STATE.reminders.length = 0;
+        DB.saveReminders();
+        this.render();
+        UI.showToast('Reminders Flushed', 'All reminders have been cleared.');
+      },
+
+      evaluate(currentTimestamp) {
+        let stateChanged = false;
+        
+        // We evaluate backwards to allow safe removal during iteration
+        for (let i = STATE.reminders.length - 1; i >= 0; i--) {
+          const reminder = STATE.reminders[i];
+          
+          if (currentTimestamp >= reminder.targetTime) {
+            // Trigger Reminder Alert!
+            this.trigger(reminder);
+            
+            // Remove from list
+            STATE.reminders.splice(i, 1);
+            stateChanged = true;
+          }
+        }
+        
+        if (stateChanged) {
+          DB.saveReminders();
+          this.render();
+        } else {
+          // If no items triggered, we still update count down labels on cards
+          this.updateCountdownLabels();
+        }
+      },
+
+      trigger(reminder) {
+        // 1. Play Synthesized Chime
+        AudioSynth.playReminderChime();
+
+        // 2. Desktop notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("KRONOS REMINDER", {
+            body: reminder.description,
+            icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ff87"><circle cx="12" cy="12" r="10"></circle></svg>'
+          });
+        }
+        
+        // 3. Gorgeous In-app Toast alert overlay
+        UI.showToast('Reminder Alight', reminder.description);
+      },
+
+      updateCountdownLabels() {
+        const now = Date.now();
+        STATE.reminders.forEach(rem => {
+          const badge = document.querySelector(`[data-badge-id="${rem.id}"]`);
+          if (badge) {
+            const timeDiff = rem.targetTime - now;
+            badge.textContent = UI.formatRemainingTime(timeDiff);
+            if (timeDiff <= 0) {
+              badge.classList.add('overdue');
+            }
+          }
+        });
+      },
+
+      render() {
+        DOM.reminderCount.textContent = `${STATE.reminders.length} Set`;
+        
+        if (DOM.clearAllRemindersBtn) {
+          DOM.clearAllRemindersBtn.style.display = STATE.reminders.length > 0 ? 'block' : 'none';
+        }
+
+        if (STATE.reminders.length === 0) {
+          DOM.remindersList.innerHTML = `
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <p style="font-weight: 600;">No reminders planned</p>
+              <p style="font-size: 0.8rem; max-width: 250px;">Fill out the scheduler on the left to set up automatic triggers.</p>
+            </div>
+          `;
+          return;
+        }
+
+        DOM.remindersList.innerHTML = '';
+        
+        STATE.reminders.forEach(rem => {
+          const dateString = new Date(rem.targetTime).toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          const card = document.createElement('div');
+          card.className = 'reminder-card';
+          card.setAttribute('data-id', rem.id);
+          card.innerHTML = `
+            <div class="reminder-card-content">
+              <div class="reminder-title">${rem.description}</div>
+              <div class="reminder-meta-row">
+                <span class="reminder-time">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  ${dateString}
+                </span>
+                <span class="countdown-badge" data-badge-id="${rem.id}">
+                  ${UI.formatRemainingTime(rem.targetTime - Date.now())}
+                </span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="action-circle-btn edit-rem-btn" onclick="window.editReminder('${rem.id}')" aria-label="Edit Reminder">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                </svg>
+              </button>
+              <button class="action-circle-btn delete-rem-btn" onclick="window.deleteReminder('${rem.id}')" aria-label="Delete Reminder">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          `;
+          
+          DOM.remindersList.appendChild(card);
+        });
+      }
+    };
+
+    /* ==========================================================================
+       7. MODULE 2: ALARM CLOCK LOGIC
+       ========================================================================== */
+    const AlarmsApp = {
+      init() {
+        DOM.addAlarmBtn.addEventListener('click', () => this.add());
+        
+        DOM.alarmDismissBtn.addEventListener('click', () => this.dismiss());
+        DOM.alarmSnoozeBtn.addEventListener('click', () => this.snooze());
+        DOM.cancelAlarmEditBtn.addEventListener('click', () => this.cancelEdit());
+        
+        this.render();
+      },
+
+      add() {
+        const timeVal = DOM.alarmTime.value;
+        const labelVal = DOM.alarmLabel.value.trim() || 'Alarm';
+        
+        if (!timeVal) {
+          UI.showToast('Validation Error', 'Please select a valid time for the alarm.');
+          return;
+        }
+
+        if (STATE.editingAlarmId) {
+          // Edit mode
+          const alarm = STATE.alarms.find(a => a.id === STATE.editingAlarmId);
+          if (alarm) {
+            // Check for duplicates
+            const exists = STATE.alarms.some(a => a.time === timeVal && a.id !== STATE.editingAlarmId);
+            if (exists) {
+              UI.showToast('Duplicate Alarm', `An alarm for ${timeVal} is already set.`);
+              return;
+            }
+            alarm.time = timeVal;
+            alarm.label = labelVal;
+            alarm.lastTriggeredDay = null; // Reset triggered state on update
+            alarm.isTriggered = false; // Reset triggered flag
+            UI.showToast('Alarm Updated', 'Your changes have been saved.');
+          }
+          this.cancelEdit();
+        } else {
+          // Add mode
+          const exists = STATE.alarms.some(a => a.time === timeVal);
+          if (exists) {
+            UI.showToast('Duplicate Alarm', `An alarm for ${timeVal} is already set.`);
+            return;
+          }
+
+          const newAlarm = {
+            id: 'alarm_' + Math.random().toString(36).substr(2, 9),
+            time: timeVal, // "HH:MM" 24h
+            label: labelVal,
+            enabled: true,
+            isTriggered: false,
+            lastTriggeredDay: null
+          };
+
+          STATE.alarms.push(newAlarm);
+          UI.showToast('Alarm Added', `Successfully set for ${timeVal}.`);
+        }
+        
+        // Sort alarms chronologically by time
+        STATE.alarms.sort((a, b) => a.time.localeCompare(b.time));
+        
+        DB.saveAlarms();
+        this.render();
+      },
+
+      editAlarm(id) {
+        const alarm = STATE.alarms.find(a => a.id === id);
+        if (!alarm) return;
+
+        STATE.editingAlarmId = id;
+        DOM.alarmTime.value = alarm.time;
+        DOM.alarmLabel.value = alarm.label;
+
+        DOM.alarmFormTitle.textContent = "Edit Alarm";
+        DOM.addAlarmBtnText.textContent = "Update Alarm";
+        DOM.cancelAlarmEditBtn.style.display = "block";
+        
+        DOM.alarmTime.focus();
+      },
+
+      cancelEdit() {
+        STATE.editingAlarmId = null;
+        DOM.alarmTime.value = "";
+        DOM.alarmLabel.value = "";
+
+        DOM.alarmFormTitle.textContent = "Queue Alarm";
+        DOM.addAlarmBtnText.textContent = "Set Alarm";
+        DOM.cancelAlarmEditBtn.style.display = "none";
+      },
+
+      deleteAlarm(id) {
+        if (STATE.editingAlarmId === id) {
+          this.cancelEdit();
+        }
+        const index = STATE.alarms.findIndex(a => a.id === id);
+        if (index !== -1) {
+          STATE.alarms.splice(index, 1);
+        }
+        DB.saveAlarms();
+        this.render();
+        UI.showToast('Alarm Deleted', 'The alarm has been successfully removed.');
+      },
+
+      clearAll() {
+        this.cancelEdit();
+        STATE.alarms.length = 0;
+        DB.saveAlarms();
+        this.render();
+        UI.showToast('Alarms Flushed', 'All alarms have been cleared.');
+      },
+
+      toggle(id, checked) {
+        const alarm = STATE.alarms.find(a => a.id === id);
+        if (alarm) {
+          alarm.enabled = checked;
+          // Reset trigger block when enabling
+          if (checked) {
+            alarm.lastTriggeredDay = null;
+            alarm.isTriggered = false;
+          }
+          
+          DB.saveAlarms();
+          this.render();
+          
+          const status = checked ? 'Enabled' : 'Disabled';
+          UI.showToast(`Alarm ${status}`, `Alarm for ${alarm.time} has been updated.`);
+        }
+      },
+
+      evaluate(hours, minutes, seconds) {
+        const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        
+        STATE.alarms.forEach(alarm => {
+          if (
+            alarm.enabled &&
+            !alarm.isTriggered &&
+            alarm.time === timeString
+          ) {
+            this.trigger(alarm);
+          }
+        });
+      },
+
+      trigger(alarm) {
+        // Store current active alarm triggering meta state
+        STATE.activeAlarmTriggered = alarm;
+        
+        // Deactivate IMMEDIATELY to prevent interval double-firing
+        alarm.enabled = false;
+        alarm.isTriggered = true;
+        DB.saveAlarms();
+        this.render();
+        
+        // Update modal info
+        DOM.modalAlarmLabel.textContent = alarm.label;
+        DOM.modalAlarmTime.textContent = alarm.time;
+        
+        // Open modal
+        DOM.alarmModal.classList.add('active');
+        
+        // Run synthesizer siren loops
+        if (STATE.alarmSirenInstance) STATE.alarmSirenInstance.stop();
+        STATE.alarmSirenInstance = AudioSynth.startAlarmSiren();
+      },
+
+      dismiss() {
+        if (STATE.alarmSirenInstance) {
+          STATE.alarmSirenInstance.stop();
+          STATE.alarmSirenInstance = null;
+        }
+        
+        DOM.alarmModal.classList.remove('active');
+        const alarm = STATE.activeAlarmTriggered;
+        if (alarm) {
+          alarm.enabled = false;
+          alarm.isTriggered = true;
+          DB.saveAlarms();
+        }
+        STATE.activeAlarmTriggered = null;
+        this.render();
+      },
+
+      snooze() {
+        if (STATE.alarmSirenInstance) {
+          STATE.alarmSirenInstance.stop();
+          STATE.alarmSirenInstance = null;
+        }
+
+        DOM.alarmModal.classList.remove('active');
+        
+        const currentAlarm = STATE.activeAlarmTriggered;
+        if (!currentAlarm) return;
+
+        // Calculate 5 minutes in the future
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 5);
+        
+        const snoozeHH = String(now.getHours()).padStart(2, '0');
+        const snoozeMM = String(now.getMinutes()).padStart(2, '0');
+        const snoozeTime = `${snoozeHH}:${snoozeMM}`;
+
+        // Create temporary snooze alarm
+        const snoozeAlarm = {
+          id: 'snooze_' + Math.random().toString(36).substr(2, 9),
+          time: snoozeTime,
+          label: `Snooze: ${currentAlarm.label}`,
+          enabled: true,
+          isTriggered: false,
+          lastTriggeredDay: null,
+          isSnoozeOneOff: true // Flag to automatically remove after firing
+        };
+
+        STATE.alarms.push(snoozeAlarm);
+        STATE.alarms.sort((a, b) => a.time.localeCompare(b.time));
+        DB.saveAlarms();
+        
+        this.render();
+        UI.showToast('Alarm Snoozed', `Alert rescheduled for ${snoozeTime} (5 mins delay).`);
+        STATE.activeAlarmTriggered = null;
+      },
+
+      render() {
+        DOM.alarmCount.textContent = `${STATE.alarms.length} Set`;
+        
+        if (DOM.clearAllAlarmsBtn) {
+          DOM.clearAllAlarmsBtn.style.display = STATE.alarms.length > 0 ? 'block' : 'none';
+        }
+
+        if (STATE.alarms.length === 0) {
+          DOM.alarmsList.innerHTML = `
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <p style="font-weight: 600;">No active alarms</p>
+              <p style="font-size: 0.8rem; max-width: 250px;">Select a time above to schedule an audio reminder call.</p>
+            </div>
+          `;
+          return;
+        }
+
+        DOM.alarmsList.innerHTML = '';
+        
+        STATE.alarms.forEach(alarm => {
+          // If a snooze alarm has fired and is disabled, we remove it from list
+          if (alarm.isSnoozeOneOff && !alarm.enabled) {
+            AlarmsApp.deleteAlarm(alarm.id);
+            return;
+          }
+
+          const card = document.createElement('div');
+          card.className = `alarm-card ${alarm.enabled ? '' : 'disabled'}`;
+          card.setAttribute('data-id', alarm.id);
+          card.innerHTML = `
+            <div class="alarm-card-info">
+              <div class="alarm-time-text">${alarm.time}</div>
+              <div class="alarm-label-text">${alarm.label}</div>
+            </div>
+            
+            <div class="alarm-card-actions">
+              <label class="switch" aria-label="Toggle Alarm">
+                <input type="checkbox" class="alarm-toggle-checkbox" onclick="window.toggleAlarm('${alarm.id}', this.checked)" ${alarm.enabled ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+              <button class="action-circle-btn edit-alarm-btn" onclick="window.editAlarm('${alarm.id}')" aria-label="Edit Alarm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                </svg>
+              </button>
+              <button class="action-circle-btn delete-alarm-btn" onclick="window.deleteAlarm('${alarm.id}')" aria-label="Delete Alarm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          `;
+
+          DOM.alarmsList.appendChild(card);
+        });
+      }
+    };
+
+    // Global scope bindings for inline HTML event attributes
+    window.editReminder = (id) => RemindersApp.editReminder(id);
+    window.deleteReminder = (id) => RemindersApp.deleteReminder(id);
+    window.clearAllReminders = () => RemindersApp.clearAll();
+    
+    window.editAlarm = (id) => AlarmsApp.editAlarm(id);
+    window.deleteAlarm = (id) => AlarmsApp.deleteAlarm(id);
+    window.toggleAlarm = (id, checked) => AlarmsApp.toggle(id, checked);
+    window.clearAllAlarms = () => AlarmsApp.clearAll();
+
+    /* ==========================================================================
+       8. MODULE 3: COUNTDOWN TIMER LOGIC
+       ========================================================================== */
+    const TimerApp = {
+      init() {
+        // Hook inputs, spinners and buttons
+        DOM.timerToggleBtn.addEventListener('click', () => this.toggle());
+        DOM.timerResetBtn.addEventListener('click', () => this.reset());
+        DOM.timerDismissBtn.addEventListener('click', () => this.dismissModal());
+        
+        // Spinners (+ / -) delegate listener
+        DOM.timerSpinnersGroup.addEventListener('click', (e) => {
+          const btn = e.target.closest('.spinner-btn');
+          if (!btn) return;
+          
+          const action = btn.getAttribute('data-action');
+          const targetId = btn.getAttribute('data-target');
+          const input = document.getElementById(targetId);
+          
+          if (input) {
+            let val = parseInt(input.value) || 0;
+            const min = parseInt(input.min) || 0;
+            const max = parseInt(input.max) || 99;
+            
+            if (action === 'inc') {
+              val = val >= max ? min : val + 1;
+            } else if (action === 'dec') {
+              val = val <= min ? max : val - 1;
+            }
+            
+            input.value = String(val).padStart(2, '0');
+            this.updateRemainingFromInputs();
+          }
+        });
+
+        // Numeric inputs directly updating time
+        [DOM.timerMinInput, DOM.timerSecInput].forEach(input => {
+          input.addEventListener('change', () => {
+            let val = parseInt(input.value) || 0;
+            const min = parseInt(input.min) || 0;
+            const max = parseInt(input.max) || 99;
+            
+            if (val < min) val = min;
+            if (val > max) val = max;
+            
+            input.value = String(val).padStart(2, '0');
+            this.updateRemainingFromInputs();
+          });
+        });
+
+        // Presets buttons
+        DOM.timerPresets.addEventListener('click', (e) => {
+          const btn = e.target.closest('.preset-btn');
+          if (!btn) return;
+          
+          const mins = parseInt(btn.getAttribute('data-mins'));
+          DOM.timerMinInput.value = String(mins).padStart(2, '0');
+          DOM.timerSecInput.value = '00';
+          
+          this.updateRemainingFromInputs();
+        });
+
+        // Set initial screen state
+        this.updateRemainingFromInputs();
+      },
+
+      updateRemainingFromInputs() {
+        if (STATE.timer.status !== 'idle') return;
+        
+        const m = parseInt(DOM.timerMinInput.value) || 0;
+        const s = parseInt(DOM.timerSecInput.value) || 0;
+        
+        STATE.timer.totalSeconds = (m * 60) + s;
+        STATE.timer.remainingSeconds = STATE.timer.totalSeconds;
+        
+        this.drawDisplay();
+      },
+
+      drawDisplay() {
+        const total = STATE.timer.totalSeconds;
+        const remaining = STATE.timer.remainingSeconds;
+        
+        // Calculate display readout
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        DOM.timerDisplay.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        
+        // Calculate SVG circle progress ring offset
+        // Circumference is 597
+        const circ = 597;
+        let offset = 0;
+        
+        if (total > 0) {
+          offset = circ - ((remaining / total) * circ);
+        }
+        DOM.timerRingProgress.style.strokeDashoffset = offset;
+      },
+
+      toggle() {
+        if (STATE.timer.status === 'idle' || STATE.timer.status === 'paused') {
+          this.start();
+        } else if (STATE.timer.status === 'running') {
+          this.pause();
+        }
+      },
+
+      start() {
+        if (STATE.timer.totalSeconds <= 0) {
+          UI.showToast('Validation Error', 'Please specify a duration greater than 0.');
+          return;
+        }
+
+        STATE.timer.status = 'running';
+        DOM.timerStatus.textContent = 'Running';
+        
+        // Hide/Disable inputs during timer execution
+        this.setInputViewState(false);
+
+        // Update Toggle button styling
+        DOM.timerToggleBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+          <span>Pause</span>
+        `;
+        DOM.timerToggleBtn.style.background = 'var(--accent-orange)';
+        DOM.timerToggleBtn.style.boxShadow = '0 4px 15px var(--accent-orange-glow)';
+
+        // Clear active classes if resuming from finish state
+        DOM.timerRingProgress.classList.remove('finished');
+
+        // Interval execution
+        STATE.timer.intervalId = setInterval(() => {
+          if (STATE.timer.remainingSeconds > 0) {
+            STATE.timer.remainingSeconds--;
+            this.drawDisplay();
+            
+            if (STATE.timer.remainingSeconds === 0) {
+              this.finish();
+            }
+          }
+        }, 1000);
+      },
+
+      pause() {
+        STATE.timer.status = 'paused';
+        DOM.timerStatus.textContent = 'Paused';
+        
+        clearInterval(STATE.timer.intervalId);
+        STATE.timer.intervalId = null;
+
+        DOM.timerToggleBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Resume</span>
+        `;
+        DOM.timerToggleBtn.style.background = 'var(--accent-mint)';
+        DOM.timerToggleBtn.style.boxShadow = '0 4px 15px var(--accent-mint-glow)';
+      },
+
+      reset() {
+        // Stop active intervals
+        clearInterval(STATE.timer.intervalId);
+        STATE.timer.intervalId = null;
+        
+        STATE.timer.status = 'idle';
+        DOM.timerStatus.textContent = 'Idle';
+
+        // Re-enable input layout fields
+        this.setInputViewState(true);
+        
+        // Recover original configs
+        this.updateRemainingFromInputs();
+        
+        // Reset action toggle buttons
+        DOM.timerToggleBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Start</span>
+        `;
+        DOM.timerToggleBtn.style.background = 'var(--accent-orange)';
+        DOM.timerToggleBtn.style.boxShadow = '0 4px 15px var(--accent-orange-glow)';
+        
+        DOM.timerRingProgress.classList.remove('finished');
+        
+        if (STATE.timerBeepInstance) {
+          STATE.timerBeepInstance.stop();
+          STATE.timerBeepInstance = null;
+        }
+      },
+
+      setInputViewState(enabled) {
+        const inputs = DOM.timerSpinnersGroup.querySelectorAll('input');
+        const btns = DOM.timerSpinnersGroup.querySelectorAll('button');
+        const presets = DOM.timerPresets.querySelectorAll('button');
+        
+        inputs.forEach(i => i.disabled = !enabled);
+        btns.forEach(b => b.disabled = !enabled);
+        presets.forEach(p => p.disabled = !enabled);
+      },
+
+      finish() {
+        clearInterval(STATE.timer.intervalId);
+        STATE.timer.intervalId = null;
+        
+        STATE.timer.status = 'finished';
+        DOM.timerStatus.textContent = 'Finished';
+
+        DOM.timerRingProgress.classList.add('finished');
+        
+        // Trigger Audio alarms
+        if (STATE.timerBeepInstance) STATE.timerBeepInstance.stop();
+        STATE.timerBeepInstance = AudioSynth.startTimerBeeps();
+
+        // Reveal modal display alert
+        DOM.timerModal.classList.add('active');
+      },
+
+      dismissModal() {
+        DOM.timerModal.classList.remove('active');
+        if (STATE.timerBeepInstance) {
+          STATE.timerBeepInstance.stop();
+          STATE.timerBeepInstance = null;
+        }
+        this.reset();
+      }
+    };
+
+    /* ==========================================================================
+       9. TAB NAVIGATIONAL ANIMATIONS MODULE
+       ========================================================================== */
+    const Navigation = {
+      init() {
+        DOM.tabTriggers.forEach(trigger => {
+          trigger.addEventListener('click', (e) => {
+            const target = e.currentTarget.getAttribute('data-target');
+            const tabName = target.replace('-module', '');
+            
+            // 1. Update body wrapper dynamic theme attributes
+            DOM.body.setAttribute('data-active-tab', tabName);
+            
+            // 2. Clear previous active navigation classes
+            DOM.tabTriggers.forEach(t => t.classList.remove('active'));
+            DOM.tabPanels.forEach(p => p.classList.remove('active'));
+            
+            // 3. Set new active classes
+            e.currentTarget.classList.add('active');
+            document.getElementById(target).classList.add('active');
+            
+            // 4. Track layout state
+            STATE.activeTab = tabName;
+          });
+        });
+      }
+    };
+
+    /* ==========================================================================
+       10. APPLICATION ENTRY INITIALIZATION
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Load active databases
+      DB.load();
+      
+      // 2. Initialize application tabs
+      Navigation.init();
+      
+      // 3. Initialize modules
+      RemindersApp.init();
+      AlarmsApp.init();
+      TimerApp.init();
+
+      // 4. Mount core system clocks loops
+      Engine.start();
+
+      // 5. Unmount Splash screen and fade in main content board
+      setTimeout(() => {
+        DOM.splashScreen.classList.add('fade-out');
+        
+        // Fade in dashboard layout components
+        setTimeout(() => {
+          DOM.splashScreen.remove();
+          DOM.appContainer.classList.add('visible');
+        }, 600); // match splash fade out duration transition
+      }, 2300); // display splash screen for 2.3 seconds
+    });
+  </script>
+</body>
+</html>
